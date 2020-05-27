@@ -1,0 +1,34 @@
+Raw_code,Desciption,Category
+Park,Park,Motivation
+A1,Abundance of wildlife,Motivation
+A2,Availability of animals,Motivation
+A3,Availability of plants,Motivation
+A4,Wilderness,Motivation
+A5,Beautiful landscape,Motivation
+A6,Knowledge,Motivation
+A7,Peaceful quiet,Motivation
+A8,Convenience,Motivation
+A9,Variety of activities,Motivation
+A10,Opportunities to learn,Motivation
+A11,"Culture, arts",Motivation
+A12,Friendliness,Motivation
+A13,Special events,Motivation
+A14,Harmonious relationships,Motivation
+B2-Interpretation required?,Tourism experience,Experience
+C1,Sufficient information,Interpretation
+C2,Quality information,Interpretation
+C3,Significance of experience,Interpretation
+C4,Encouraged awareness,Interpretation
+D1,View wildlife,Interaction
+D2,See wildlife behavior,Interaction
+D3,Learn,Interaction
+D4,See unique,Interaction
+G1,Wildlife tourism experiences,Satisfaction
+G2,Entire holiday experience,Satisfaction
+G3,Prices or fees,Satisfaction
+J1-Gender,Gender,Demographics
+J2-Age,Age,Demographics
+J3-Origin,Origin,Demographics
+J4-Education,Education,Demographics
+J5-Income,Income,Demographics
+J6-Times visited,Times visited,Demographics
