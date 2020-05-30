@@ -2,7 +2,7 @@
 
 by Sebastien Abilla
 
-This set of files is an attempt to reproduce the staistical analysis in :
+This set of files is an attempt to reproduce the statistical analysis in :
 Travel motivation and tourist satisfaction with wildlife tourism experiences in Gonarezhou and Matusadona National Parks, Zimbabwe
 Mutanga C.N., Vengesayi S., Chikuta O., Muboko N., Gandiwa E.
 (2017)  Journal of Outdoor Recreation and Tourism,  20 , pp. 1-18.
