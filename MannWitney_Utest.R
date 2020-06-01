@@ -14,3 +14,5 @@ Utestp <- sapply(1:14, function(col) wilcox.test(unlist(entryM[,col]),unlist(ent
 
 #Table 4 many values so CLT and p.value instead of Z (abs(Z)>2 == p<0.5)
 tibble(names[2:15,2],names[2:15,1],meansG,ranksG,meansM,ranksM,N=rep(128,14),U=UtestW,round(Utestp, 2))
+
+

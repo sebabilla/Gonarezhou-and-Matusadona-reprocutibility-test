@@ -57,7 +57,7 @@ tibble(Rawcode = names(means_col_raw), means = means_col_raw) %>%
 #Table 3 : mean by park, the agregate (to test disymetry) -> fail 
 mean(c(mean(c(4.52,4.75)),mean(c(4.51,4.61)))) 
 
-#Table 3 : Cronbach alpha -> this too miss is slightly different
+#Table 3 : Cronbach alpha -> this too is slightly different
 find_alpha <- function(x){
 select_col <- Paperfactors %>% filter(Paperfactors == x) %>%
   select(Rawcode) %>% pull

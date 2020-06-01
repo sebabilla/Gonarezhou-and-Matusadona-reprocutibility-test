@@ -6,3 +6,6 @@ MNPdem <- raw %>% select(Park, `J1-Gender`:`J6-Times visited`) %>%
 grid.arrange(tableGrob(GNPdem, cols = NULL),
              tableGrob(MNPdem, cols = NULL), nrow=1, top = "table 2 : GNP and MNP")
 
+options(knitr.kable.NA = '-')
+knitr::kable(GNPdem, caption = "ペーパーのTable 2")
+knitr::kable(GNPdem)

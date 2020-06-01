@@ -1,0 +1,332 @@
+---
+title: "Rを使ってSPSSで得た結果の再現性と妥当性の検討：査読されたペーパーの統計を再現してみよう"
+author: "Sébastien Abilla"
+date: "02/06/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,  warning=FALSE, message=FALSE)
+```
+
+
+### 検討のターゲット
+**Mutanga C.N.**, Vengesayi S., Chikuta O., Muboko N., Gandiwa E. (2017) *Travel motivation and tourist satisfaction with wildlife tourism experiences in Gonarezhou and Matusadona National Parks, Zimbabwe*, Journal of Outdoor Recreation and Tourism, 20 , pp. 1-18. 
+[link](https://doi.org/10.1016/j.jort.2017.08.001)
+
+
+### 選択の理由
+
+* 私の研究と似ているポイント
+  + 国立公園　+　動機についてのアンケート調査
+  + 南アフリカ各国の国立公園で、外国から観光客が大勢で、多文化系からみるといつも興味深い研究だと思う。
+* 再現のトライ
+  + データベースが付いている　（すごくいい！）
+  + 私と違ってSPSSを使って、「ctrl+c, ctrl+v」などごまかすことができず、実力のテストになる。
+
+
+### ペーパーの話
+
+今日、内容として、データの分析だけ紹介するつもりで、ペーパーの流れについて、一言しか書かない。
+
+1. 経済的に、観光客が満足で人数が増えたら、嬉しい
+2. だが、観光客はなにが欲しい？動機と満足さが繋がっているのかい？（言うことと実情のかんけい）
+3. 解くため、アンケート調査！
+4. 描き
+5. 行い
+6. **分析し　→　今日**
+7. 結果がいいね
+8. 〇〇のある程度で動機と満足さが繋がっているが把握できた。
+9. 終わり
+
+
+### 探索的因子分析（exploratory factor analysis -EFA- ）のスタイルとは
+
+「私のデータの中で、何かの面白いことがある、きっとある。けどその何かはなんだ、知らない。コンピュターに任せよう」というような研究のスタイル。
+
+> 因子分析（factor analysis）は、多数の意識変数がいくつかの根本的な概念によって形成されていると想定するような場合によく用いられる。統計的には、「複数の従属変数が、共通の独立変数による回帰式で説明できる」という枠組みでデータを整理している。ここでいう「複数の従属変数」は、実際にデータが得られている顕在変数（manifest variables; observed variables）であるのに対して、「共通の独立変数」はデータにはない想像上の 潜 在変数（latent variables; unobserved variables）である。 [保田, 2013](http://www2.itc.kansai-u.ac.jp/~tyasuda/files/2013/methoda/6_factor.pdf)
+
+#### 3つの段階
+
+1. 自分の目でデータを探索する　（表、グラーフを多少描く）
+2. その検索ｘ研究者の経験ｘ専門者の勘　→　適当な方法の選択、インプット（例：動機）の探索的因子分析（EFA）をコンピュターにやらせる。(いい結果が出るまで、やり直せる)EFAが成功ならば、数え切れないインプットデータは少ない因子（factors）で記述できる。
+3. モデルをつくってみる。とはfactorsをコンピュターにもう一回任せて、コンピュターはインプととアウトプットを繋がってみる。いいモデルが出たら(best fit)、アウトプットが良いに予測できるようになる。（でなければ、1.まで戻らなっちゃう）
+
+ま、日本語でよりよい良くて細かい説明が欲しいならば、山中教授は大専門家!
+
+EFAの方法として、Mutanga氏が「**主成分分析**」（**PCA**）という方法を使って、モデルをかくため、「**順序ロジスティック回帰分析**」（**ordinal logistic regression**）を使った。（下記）
+
+##### 始めましょうか？
+
+### libraries 
+= 上手な人がもう描いたコード
+```{r libraries}
+library(psych); library(GPArotation) #for PCA
+library(MASS) # foc ordinal logistic regression
+library(readr); library(dplyr); library(tibble); library(gridExtra) # tidy
+```
+
+### データ
+```{r data}
+raw <- read_csv("Data/raw.csv")
+head(raw)
+names <- read_csv("Data/names.csv")
+as.data.frame(names) #アンケート調査の質問
+```
+
+### 人口統計
+```{r demographics}
+GNPdem <- raw %>% select(Park, `J1-Gender`:`J6-Times visited`) %>%
+  filter(Park=="G") %>% mutate_all(as.factor) %>% summary() %>% t()
+MNPdem <- raw %>% select(Park, `J1-Gender`:`J6-Times visited`) %>%
+  filter(Park=="M") %>% mutate_all(as.factor) %>% summary() %>% t()
+```
+```{r print demog, echo=FALSE}
+options(knitr.kable.NA = '-')
+knitr::kable(GNPdem, caption = "ペーパーのTable 2")
+knitr::kable(GNPdem)
+```
+
+### EFA
+#### 前提？
+
+* 人数　100人以上　→　OK
+* factors　５以上　→　OK　"Likert　scale"
+* 正規分布　→　ま、いいかな
+
+```{r normal distrib}
+EFAdata <- raw %>% select(A1:A14)
+par(mfrow=c(3,5))
+for (i in 1:14) {
+  x <- EFAdata[,i] %>% unlist
+  title <- paste("A",i, sep = "")
+  hist(x, main=title)
+}
+par(mfrow=c(1,1))
+```
+
+#### 適当な相関
+```{r cor}
+knitr::kable(round(cor(EFAdata),2)) 
+colSums(cor(EFAdata)>=0.9) # Avoid part of cofounding 
+colSums(cor(EFAdata)>=0.4) # If no correlation, nothing to
+```
+
+#### EFA方に適当？
+```{r kmo surprise}
+KMO(cor(EFAdata)) # > 0.6  same value as paper but original authors (Kaiser-Meyer-Oklin) said it's "middling"
+cortest.bartlett(EFAdata) # not bad
+```
+
+#### グループをいくるすれば？？
+14から？？まで
+```{r pc number}
+fa.parallel(EFAdata, fa = 'pc')
+```
+おすすめは2だが、筆者は3を選んだ。（理由不明）3しよう。
+
+#### 主成分分析 - PCA
+[数学でとても苦手な人向きのビデオ：（方程式なし、用語あまりなし、英語がゆっくり、図は明確）](https://www.youtube.com/watch?v=_UVHneBUBW0)
+```{r pca}
+noms <-  names[2:15,2] %>% pull
+colnames(EFAdata) <- noms
+pc <- principal(EFAdata, nfactors=3, rotate="none")
+pck <- kaiser(pc, rotate = "oblimin")
+fa.plot(pck, title = "position of factors along PCx, PCy axes")
+print.psych(pck, cut = 0.42, sort = TRUE) #contrary to the paper, I had to do a cut at 0.42 (not 0.32 to get similar result)
+fa.diagram(pck, cut = 0.42, digits = 2, simple = TRUE, main = "ペーパーのTable 3 ??")
+```
+
+ま、筆者との同じグループ使用
+
+#### PCの記述
+平均
+```{r means}
+Paperfactors <- tibble(Rawcode = names[2:15,1]$Raw_code, 
+                       Paperfactors = c("Appreciating","Appreciating","Appreciating","Feeling","Feeling","Appreciating",NA,"Recreation","Recreation","Recreation","Recreation","Recreation","Recreation","Recreation"))
+means_col_raw <- raw %>% select(A1:A14) %>%
+  colMeans()
+tibble(Rawcode = names(means_col_raw), means = means_col_raw) %>%
+  left_join(Paperfactors) %>%
+  group_by(Paperfactors) %>%
+  summarize(means = mean(means))
+```
+ただの平均でもいろんな修正をやっても、同じ桁がでなかった。
+
+#### Factorsの信頼性
+[Cronbach alpha](https://bellcurve.jp/statistics/glossary/1274.html)
+```{r alpha}
+find_alpha <- function(x){
+select_col <- Paperfactors %>% filter(Paperfactors == x) %>%
+  select(Rawcode) %>% pull
+alpha <- raw %>% select(select_col) %>%
+  alpha() %>% .$total %>%
+  select(mean, std.alpha) %>% unlist %>% round(., digits = 2)
+alpha
+}
+fact <- c("Recreation","Appreciating","Feeling")
+sapply(fact, find_alpha) %>%
+  t() %>% as.data.frame() %>% rownames_to_column() 
+```
+Feelingというグループはやはり弱い。
+質的に筆者と同じ結果が出せるが、量的に全部はちょこちょこずれる。
+
+
+### pull motivation factors
+
+#### とは？
+押す（push）引く（pull）という意味？残念ながら翻訳ならプッシュモチベーションとプルモチベーションになる。。。
+
+* push　せっかくすること
+* pull 思わずすること
+
+そのようなペーパーによくある仮定
+
+* push == PC　（普通に人間はそこまで考える）
+* pull == 細かいポイント　（普通に人間はそこまで考えない）
+
+微妙...
+
+```{r table4 calc}
+#Table 4 means & ranks
+meansG <- raw %>% filter(Park == "G") %>% select(A1:A14) %>% colMeans() %>% round(.,2)
+ranksG <- rank(-meansG)
+meansM <- raw %>% filter(Park == "M") %>% select(A1:A14) %>% colMeans() %>%  round(.,2)
+ranksM <- floor(rank(-meansM))
+
+#Table 4 Mann-Whitney U tests (are the 2 samples independant)
+entryG <- raw %>% filter(Park == "G") %>% select(A1:A14)
+entryM <- raw %>% filter(Park == "M") %>% select(A1:A14)
+UtestW <- sapply(1:14, function(col) wilcox.test(unlist(entryM[,col]),unlist(entryG[,col]), correct = FALSE)$statistic)
+Utestp <- sapply(1:14, function(col) wilcox.test(unlist(entryM[,col]),unlist(entryG[,col]), correct = FALSE)$p.value)
+
+```
+```{r table 4 print, echo=FALSE}
+
+#Table 4 many values so CLT and p.value instead of Z (abs(Z)>2 == p<0.5)
+tibble(names[2:15,2],names[2:15,1],meansG,ranksG,meansM,ranksM,N=rep(128,14),U=UtestW,p = round(Utestp, 2)) %>%
+  knitr::kable(caption = "ペーパーのTable 4")
+```
+
+#### 人口統計とpull factorsの関係
+人口統計とpull factorsの関係
+相関だけ、原因と結果の関係性にならない
+```{r kruskal, echo=FALSE, results="hide"}
+rawG <- raw %>% filter(Park == "G") %>% select(A1:A14, `J2-Age`:`J5-Income`)
+rawG %>% select(1, 15) %>% kruskal.test()
+
+GAJ <- sapply(c(15,17,18,16), function(x){
+allA <- sapply(1:14, function(y){
+  dat <- rawG %>% select(x=x, y=y) 
+    kruskal.test(y~x, dat) %>% .$statistic
+})
+allA
+})
+GAJ <- t(GAJ) %>% round(.,2)
+colnames(GAJ) <- names(rawG)[1:14]
+rownames(GAJ) <- names(rawG)[c(15,17,18,16)]
+```
+```{r kruscal print, echo=FALSE}
+knitr::kable(GAJ, caption = "Annexe B, Kruskal-Willis Test")
+```
+
+##### 長かったが、準備が終わり結局、モデルがつくることができる。
+
+### モデルを
+
+#### データの準備
+
+何時間もうやり直した。筆者はスケールを使ったと書いたが、一番近い結果は平均をそのまま使うと出る…。
+```{r prepare}
+reg_input <- raw %>%
+  mutate(Appr = (A1 + A2  +A3 + A6)/4, 
+         Feel = (A5 + A6)/2, 
+         Recr = (A8 + A9 + A10 + A11 + A12 + A13 + A14)/6,
+         Intepretation = (C1 + C2 + C3 + C4)/4,
+         Interaction = (D1 + D2 + D3 + D4)/4) %>%
+  mutate(Intepretation = as.factor(Intepretation),
+         Interaction = as.factor(Interaction))
+```
+
+#### ordinal logistic regression
+
+[順序ロジスティック回帰分析](https://bellcurve.jp/ex/function/logistic_o.html)
+アンケート調査向けの方法。“Likert　scale”のような”悪い”,”やや悪い”,”どうちでも”,”ややいい”,”いい”を上手に扱う。
+
+##### モデルの計算 (Table 5 上)
+```{r model1}
+model_interpretation <- polr(Intepretation ~ Recr + Appr + Feel, data = reg_input, Hess = TRUE)
+odds <- exp(confint(model_interpretation)) %>% as.data.frame() %>%
+  mutate(odd = exp(model_interpretation$coefficients))
+tableup <- summary(model_interpretation)$coefficients[1:3,1:2] %>% 
+  as.data.frame() %>% data.frame(., odds) %>% round(., 2)
+colnames(tableup) <- c("coef", "sd", "inf2.5", "odd", "sup2.5")
+```
+##### 良さ(fit)
+```{r model1fit, results="hide"}
+model_interpretation2 <- stepAIC(model_interpretation, ~.^2)
+chisq_up <- anova(model_interpretation, model_interpretation2)
+```
+##### モデルの計算 (Table 5 下)
+```{r, model2}
+model_interaction <- polr(Interaction ~ Recr + Appr + Feel, data = reg_input, Hess = TRUE)
+odds <- exp(confint(model_interaction)) %>% as.data.frame() %>%
+  mutate(odd = exp(model_interaction$coefficients))
+tabledown <- summary(model_interaction)$coefficients[1:3,1:2] %>% 
+  as.data.frame() %>% data.frame(., odds) %>% round(., 2)
+colnames(tabledown) <- c("coef", "sd", "inf2.5", "odd", "sup2.5")
+```
+##### 良さ(fit)
+```{r model2fit, results="hide"}
+model_interaction2 <- stepAIC(model_interaction, ~.^2)
+chisq_down <- anova(model_interaction, model_interaction2)
+```
+
+##### Table 5 Park GNP
+$\chi^{2}$
+```{r, echo=FALSE}
+chisq_up$`Pr(Chi)`[2]
+tableup
+```
+##### Table 5 Park MNP
+$\chi^{2}$
+```{r, echo=FALSE}
+chisq_down$`Pr(Chi)`[2]
+tabledown
+```
+近いが、ずれている。しかし良く見たらペーパーのテーブルもとてもだめだよ。Lower　と　Upper　の値はOddの信頼区間ではなく、Coefficientの信頼区間だ。… 
+
+しかし、次のテーブルは正しい。私はまったく同じコードを使って、違う結果がでるわけではない。…　わからない。
+
+##### モデルの計算 (Table 6 左)
+```{r model 3}
+reg_input_bis <- reg_input %>% filter(Park == "G")
+model_all <- polr(Intepretation ~ A1 + A2 + A3 + A4 + A5 + A6 + A7 + A8 + A9 + A10 + A11 + A12 + A13 + A14, data = reg_input_bis, Hess = TRUE)
+odds <- exp(confint(model_all)) %>% as.data.frame() %>%
+  mutate(odd = exp(model_all$coefficients))
+tableleft <- summary(model_all)$coefficients[1:14,1:2] %>% 
+  as.data.frame() %>% data.frame(., odds) %>% round(., 2)
+colnames(tableleft) <- c("coef", "sd", "inf2.5", "odd", "sup2.5")
+```
+##### 良さ(fit)
+```{r model3fit, results="hide"}
+#model_all2 <- stepAIC(model_all, ~.^2) Error Calcul Heavy for my PC
+#chisq_left <- anova(model_all, model_all2) Error
+```
+##### Table 6 Park GNP
+```{r, echo=FALSE}
+#chisq_left$`Pr(Chi)`[2]
+tableleft
+```
+##### そこから筆者はいつも同じ方法を使って、再現のトライをこれでやめた。
+
+### 結論
+
+* 良い点
+  + Machine Learning と社会科学のインプットの違うに従って、方法の設定の差が少し分かった。
+  + 授業でただのLogistic regressionだけ使った。アンケート調査をよくして**ordinal** logistic regression方があると気づくのほうがとてもいい。
+  + よく苦労したが、実践していろいろ微妙な問題点が分かった。また、どのくらい下手だも前よりよく分かる。
+* 悪い点
+  + SPSS
+* 迷うこと・議論
+  + 筆者のモデルは本当にモデルということ？観光についての論文で、そのパターンがよく見えるが、普通にモデルは①トレインして②テストする。このモデルはテストされていなかった。

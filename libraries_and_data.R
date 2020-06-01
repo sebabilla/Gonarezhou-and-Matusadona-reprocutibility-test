@@ -1,14 +1,16 @@
 #library list
-#general
-library(readr); library(dplyr); library(tibble); library(gridExtra)
 #Exploratory factor analysis
 library(psych); library(GPArotation)
+#ordinal logistic regression
+library(MASS)
+#general (last to make them first choice)
+library(readr); library(dplyr); library(tibble); library(gridExtra)
 
 #importing data
 raw <- read_csv("Data/raw.csv")
 raw #see the data
-str(raw) #type of data
-
+#str(raw) #type of data
+head(raw)
 names <- read_csv("Data/names.csv")
 as.data.frame(names) #questionnaire topics
 
